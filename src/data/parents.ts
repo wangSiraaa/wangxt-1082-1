@@ -4,6 +4,7 @@ export const initialParents: Parent[] = [
   {
     id: "pt001",
     name: "陈妈妈",
+    familyId: "fm001",
     childName: "小明",
     childAge: 4,
     phone: "13700000001",
@@ -14,6 +15,7 @@ export const initialParents: Parent[] = [
   {
     id: "pt002",
     name: "刘妈妈",
+    familyId: "fm002",
     childName: "小红",
     childAge: 3,
     phone: "13700000002",
@@ -24,6 +26,7 @@ export const initialParents: Parent[] = [
   {
     id: "pt003",
     name: "王爸爸",
+    familyId: "fm003",
     childName: "小华",
     childAge: 5,
     phone: "13700000003",
@@ -34,6 +37,7 @@ export const initialParents: Parent[] = [
   {
     id: "pt004",
     name: "赵妈妈",
+    familyId: "fm004",
     childName: "小丽",
     childAge: 2,
     phone: "13700000004",
@@ -44,6 +48,7 @@ export const initialParents: Parent[] = [
   {
     id: "pt005",
     name: "孙爸爸",
+    familyId: "fm005",
     childName: "小强",
     childAge: 6,
     phone: "13700000005",
@@ -54,6 +59,7 @@ export const initialParents: Parent[] = [
   {
     id: "pt006",
     name: "周妈妈",
+    familyId: "fm006",
     childName: "小美",
     childAge: 4,
     phone: "13700000006",

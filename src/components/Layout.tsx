@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, User, Users, Settings, LogOut, Home } from 'lucide-react';
+import { BookOpen, User, Users, Settings, LogOut, Home, Truck, Wrench, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import RoleSelector from './RoleSelector';
@@ -22,8 +22,10 @@ const roleMenus: Record<Role, { path: string; label: string; icon: React.Element
     { path: '/parent/checkins', label: '共读打卡', icon: Users },
   ],
   admin: [
-    { path: '/admin/overdue', label: '逾期处理', icon: BookOpen },
+    { path: '/admin/overdue', label: '逾期处理', icon: AlertTriangle },
     { path: '/admin/compensations', label: '赔付管理', icon: Settings },
+    { path: '/admin/transfers', label: '跨馆调拨', icon: Truck },
+    { path: '/admin/repairs', label: '修补记录', icon: Wrench },
   ],
 };
 

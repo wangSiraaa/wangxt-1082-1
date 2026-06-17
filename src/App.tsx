@@ -8,6 +8,8 @@ import MyLoans from "@/pages/parent/MyLoans";
 import Checkins from "@/pages/parent/Checkins";
 import OverdueManagement from "@/pages/admin/OverdueManagement";
 import CompensationManagement from "@/pages/admin/CompensationManagement";
+import TransferManagement from "@/pages/admin/TransferManagement";
+import RepairManagement from "@/pages/admin/RepairManagement";
 import Home from "@/pages/Home";
 
 export default function App() {
@@ -27,6 +29,8 @@ export default function App() {
           
           <Route path="/admin/overdue" element={<OverdueManagement />} />
           <Route path="/admin/compensations" element={<CompensationManagement />} />
+          <Route path="/admin/transfers" element={<TransferManagement />} />
+          <Route path="/admin/repairs" element={<RepairManagement />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
