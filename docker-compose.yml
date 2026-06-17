@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  picture-book-library:
+    build: .
+    ports:
+      - "3000:80"
+    container_name: picture-book-library
+    restart: unless-stopped
