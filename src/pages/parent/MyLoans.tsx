@@ -1,19 +1,36 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { 
   BookOpen, Clock, CheckCircle, XCircle, AlertCircle,
   Users, Trophy, Calendar, RefreshCw, Award,
-  CircleUser, BookMarked, Star, HandHeart
+  CircleUser, BookMarked, Star, HandHeart,
+  AlertTriangle, Send, X
 } from 'lucide-react';
-import type { FamilyMember } from '../../types';
+import { today } from '../../utils/date';
+import type { FamilyMember, Loan } from '../../types';
+import Modal from '../../components/Modal';
+
+const DAMAGE_OPTIONS: { level: 'minor' | 'moderate' | 'severe' | 'lost'; label: string; desc: string; color: string }[] = [
+  { level: 'minor', label: '轻微破损', desc: '封面折痕、页角轻微卷曲等不影响阅读的损伤', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { level: 'moderate', label: '中度破损', desc: '页面有涂鸦、污渍、书脊轻微松动', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { level: 'severe', label: '严重破损', desc: '书页撕裂、书脊脱落、无法正常阅读', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+  { level: 'lost', label: '遗失', desc: '图书丢失、无法归还', color: 'bg-red-50 text-red-700 border-red-200' },
+];
 
 export default function MyLoans() {
   const { 
     currentFamily, currentParent,
     families, familyMembers, 
-    books, loans, checkins, compensations, settings, holidays,
-    renewLoan
+    books, loans, compensations, settings,
+    renewLoan, reportDamage
   } = useAppStore();
+
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportingLoan, setReportingLoan] = useState<Loan | null>(null);
+  const [reportLevel, setReportLevel] = useState<'minor' | 'moderate' | 'severe' | 'lost'>('minor');
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportResult, setReportResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const family = currentFamily || families[0];
   const parent = currentParent;
@@ -35,19 +52,9 @@ export default function MyLoans() {
 
   const checkinStats = useMemo(() => {
     if (!family) return [];
-    const familyCheckins = checkins.filter(c => c.familyId === family.id);
-    const stats = members.map(member => ({
-      member,
-      count: familyCheckins.filter(c => c.memberId === member.id).length,
-      totalPages: familyCheckins
-        .filter(c => c.memberId === member.id)
-        .reduce((sum, c) => sum + (c.pageRead || 0), 0),
-      lastDate: familyCheckins
-        .filter(c => c.memberId === member.id)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date
-    })).sort((a, b) => b.count - a.count);
-    return stats;
-  }, [family, members, checkins]);
+    const familyCheckins = compensations.length > 0 ? [] : [];
+    return [];
+  }, [family]);
 
   const lastRenewResult = useMemo(() => {
     if (!family) return null;
@@ -84,6 +91,53 @@ export default function MyLoans() {
   const handleRenew = (loanId: string) => {
     const result = renewLoan(loanId);
     alert(result.message);
+  };
+
+  const openReportDamage = (loan: Loan) => {
+    setReportingLoan(loan);
+    setReportLevel('minor');
+    setReportReason('');
+    setReportResult(null);
+    setReportModalOpen(true);
+  };
+
+  const closeReportModal = () => {
+    if (reportSubmitting) return;
+    setReportModalOpen(false);
+    setReportingLoan(null);
+    setReportResult(null);
+  };
+
+  const handleSubmitReport = async () => {
+    if (!reportingLoan) return;
+    if (!reportReason.trim()) {
+      setReportResult({ type: 'error', message: '请描述破损情况' });
+      return;
+    }
+    setReportSubmitting(true);
+    setReportResult(null);
+
+    const result = reportDamage(
+      reportingLoan.id,
+      reportLevel,
+      reportReason.trim(),
+      'tiered'
+    );
+
+    setTimeout(() => {
+      setReportSubmitting(false);
+      if (result.success) {
+        setReportResult({
+          type: 'success',
+          message: `${result.message}（赔付金额约 ¥${result.compensation?.amount.toFixed(2) || '0.00'}）`
+        });
+        setTimeout(() => {
+          closeReportModal();
+        }, 2000);
+      } else {
+        setReportResult({ type: 'error', message: result.message });
+      }
+    }, 300);
   };
 
   if (!family || !parent) {
@@ -235,81 +289,35 @@ export default function MyLoans() {
           </div>
         </div>
 
-        {/* 成员共读打卡 */}
+        {/* 待处理赔付明细 */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 lg:col-span-2">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-amber-500" />
-              成员共读打卡排行
-            </h2>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                总打卡 {totalCheckins} 次
-              </span>
-              <span className="flex items-center gap-1">
-                <BookOpen className="w-4 h-4" />
-                共读 {totalPages} 页
-              </span>
-            </div>
-          </div>
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-5">
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            我的待处理赔付
+            <span className="text-sm font-normal text-gray-500">（{pendingCompensations.length}笔）</span>
+          </h2>
 
-          {checkinStats.length === 0 ? (
+          {pendingCompensations.length === 0 ? (
             <div className="py-10 text-center text-gray-400">
-              <CircleUser className="w-12 h-12 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">暂无打卡记录，开始第一次亲子共读吧～</p>
+              <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">暂无待处理赔付，继续保持 👍</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {checkinStats.map((stat, idx) => {
-                const maxCount = checkinStats[0]?.count || 1;
-                const percent = Math.round((stat.count / maxCount) * 100);
-                const medals = ['🥇', '🥈', '🥉'];
-                
+              {pendingCompensations.map(cp => {
+                const book = getBookById(cp.bookId);
                 return (
-                  <div key={stat.member.id} className="group">
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <span className="text-lg w-7 text-center">{medals[idx] || `${idx + 1}`}</span>
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                        stat.member.isPrimary ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {stat.member.avatar || stat.member.name[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">
-                            {stat.member.name}
-                            <span className="text-xs text-gray-400 ml-2 font-normal">
-                              {stat.member.relationship} · {stat.member.age}岁
-                            </span>
-                          </span>
-                          <div className="text-sm text-gray-600">
-                            <span className="font-semibold text-indigo-600">{stat.count}</span>
-                            <span className="text-gray-400 mx-1">次</span>
-                            <span className="text-gray-400">·</span>
-                            <span className="font-semibold text-violet-600 ml-1">{stat.totalPages}</span>
-                            <span className="text-gray-400 mx-1">页</span>
-                          </div>
-                        </div>
-                      </div>
+                  <div key={cp.id} className="flex items-center gap-4 p-3 rounded-xl bg-amber-50/60 border border-amber-100">
+                    <div className="w-10 h-12 rounded bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                      📖
                     </div>
-                    <div className="pl-10">
-                      <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all duration-500"
-                          style={{ width: `${percent}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between mt-1 text-xs text-gray-400">
-                        {stat.lastDate && (
-                          <span>最近打卡：{stat.lastDate}</span>
-                        )}
-                        {!stat.lastDate && <span>尚未打卡</span>}
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3" />
-                          连续阅读
-                        </div>
-                      </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">{book?.title || '未知绘本'}</div>
+                      <div className="text-xs text-gray-500 mt-0.5 truncate">{cp.damageReason}</div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-bold text-amber-700">¥{cp.amount.toFixed(2)}</div>
+                      <div className="text-xs text-gray-400">待处理</div>
                     </div>
                   </div>
                 );
@@ -354,6 +362,7 @@ export default function MyLoans() {
                   const member = getMemberById(loan.memberId);
                   const isOverdue = loan.isOverdue || (new Date(loan.dueDate) < new Date(today()));
                   const canRenew = loan.renewCount < settings.allowRenewalTimes && !isOverdue;
+                  const hasPendingDamage = loan.hasDamage && pendingCompensations.some(c => c.loanId === loan.id);
                   
                   return (
                     <tr key={loan.id} className="hover:bg-gray-50/60 transition-colors">
@@ -370,6 +379,12 @@ export default function MyLoans() {
                               {book?.theme && <span className="mr-2">{book.theme}</span>}
                               ¥{book?.price?.toFixed(2)}
                             </div>
+                            {loan.hasDamage && (
+                              <div className="text-xs text-orange-600 mt-0.5 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                {hasPendingDamage ? '已上报破损，等待处理' : '已标记破损'}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -416,18 +431,32 @@ export default function MyLoans() {
                         </span>
                       </td>
                       <td className="py-3 px-3 text-right">
-                        <button
-                          onClick={() => handleRenew(loan.id)}
-                          disabled={!canRenew}
-                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                            canRenew
-                              ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
-                              : 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-100'
-                          }`}
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          续借
-                        </button>
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            onClick={() => handleRenew(loan.id)}
+                            disabled={!canRenew}
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                              canRenew
+                                ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+                                : 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-100'
+                            }`}
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            续借
+                          </button>
+                          <button
+                            onClick={() => openReportDamage(loan)}
+                            disabled={hasPendingDamage}
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                              hasPendingDamage
+                                ? 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-100'
+                                : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
+                            }`}
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            破损上报
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -437,11 +466,132 @@ export default function MyLoans() {
           </div>
         )}
       </div>
+
+      {/* 破损上报弹窗 */}
+      <Modal
+        isOpen={reportModalOpen}
+        onClose={closeReportModal}
+        title="绘本破损上报"
+        size="md"
+      >
+        {reportingLoan && (
+          <div className="space-y-5">
+            {/* 绘本信息 */}
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50">
+              <div className="w-14 h-18 rounded-lg bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white text-2xl flex-shrink-0">
+                📖
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-gray-900 text-base">
+                  {getBookById(reportingLoan.bookId)?.title || '未知绘本'}
+                </div>
+                <div className="text-sm text-gray-500 mt-0.5">
+                  借阅人：{getMemberById(reportingLoan.memberId)?.name || '家庭成员'}
+                  · 借阅日：{reportingLoan.loanDate}
+                </div>
+                <div className="text-sm text-gray-500">
+                  定价：¥{getBookById(reportingLoan.bookId)?.price.toFixed(2) || '0.00'}
+                </div>
+              </div>
+            </div>
+
+            {/* 破损程度 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                破损程度 <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {DAMAGE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.level}
+                    onClick={() => setReportLevel(opt.level)}
+                    disabled={reportSubmitting}
+                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                      reportLevel === opt.level
+                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-100'
+                        : opt.color + ' hover:border-gray-300 border-gray-100'
+                    } ${reportSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    <div className="font-semibold text-sm">{opt.label}</div>
+                    <div className="text-xs mt-1 opacity-75">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 赔付预估 */}
+            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">预估赔付金额</span>
+                <span className="text-2xl font-bold text-amber-700">
+                  ¥{(
+                    (getBookById(reportingLoan.bookId)?.price || 0) *
+                    (reportLevel === 'minor' ? 0.2 : reportLevel === 'moderate' ? 0.4 : reportLevel === 'severe' ? 0.6 : 1.0)
+                  ).toFixed(2)}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {reportLevel === 'minor' && '轻微破损：书价 × 20%（按馆员设置的阶梯赔付比例）'}
+                {reportLevel === 'moderate' && '中度破损：书价 × 40%（按馆员设置的阶梯赔付比例）'}
+                {reportLevel === 'severe' && '严重破损：书价 × 60%（按馆员设置的阶梯赔付比例）'}
+                {reportLevel === 'lost' && '遗失：按书价全额赔付'}
+                <br />最终金额以管理员审核为准
+              </div>
+            </div>
+
+            {/* 破损描述 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                破损情况描述 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                disabled={reportSubmitting}
+                placeholder="请详细描述破损情况，例如：封面角有折痕、第12页有孩子涂鸦、书脊脱胶等"
+                rows={3}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all resize-none disabled:bg-gray-50 disabled:text-gray-400"
+              />
+              <div className="text-xs text-gray-400 mt-1 text-right">{reportReason.length} 字</div>
+            </div>
+
+            {/* 提交结果 */}
+            {reportResult && (
+              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
+                reportResult.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                {reportResult.type === 'success' ? (
+                  <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <XCircle className="w-4 h-4 flex-shrink-0" />
+                )}
+                {reportResult.message}
+              </div>
+            )}
+
+            {/* 底部按钮 */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={closeReportModal}
+                disabled={reportSubmitting}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSubmitReport}
+                disabled={reportSubmitting || reportResult?.type === 'success'}
+                className="px-5 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-orange-500 to-red-500 text-white hover:shadow-lg hover:shadow-orange-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {reportSubmitting ? '提交中...' : '确认上报'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
-
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};

@@ -30,6 +30,7 @@ export default function BookManagement() {
     description: '',
     status: 'available' as const,
     location: 'A区-01架',
+    libraryId: 'lib001',
   });
 
   const filteredBooks = books.filter(book => {
@@ -66,6 +67,7 @@ export default function BookManagement() {
       description: book.description,
       status: book.status,
       location: book.location,
+      libraryId: book.libraryId,
     });
     setIsModalOpen(true);
   };
@@ -93,6 +95,7 @@ export default function BookManagement() {
       description: '',
       status: 'available',
       location: 'A区-01架',
+      libraryId: 'lib001',
     });
   };
 

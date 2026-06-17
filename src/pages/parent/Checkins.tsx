@@ -38,8 +38,10 @@ export default function Checkins() {
     addCheckin({
       loanId: selectedLoanId,
       parentId: currentParent.id,
+      familyId: currentParent.familyId,
       bookId: loan.bookId,
       checkinDate,
+      date: checkinDate,
       durationMinutes,
       notes,
       photoUrl: photoUrl || `https://picsum.photos/seed/ck${Date.now()}/400/300`,

@@ -329,6 +329,10 @@ export function canCreateTransfer(transfer: Partial<BookTransfer>, books: Book[]
   return { valid: true, message: '' };
 }
 
+export function formatMoney(amount: number): string {
+  return `¥${amount.toFixed(2)}`;
+}
+
 export function getThemeStockDiff(books: Book[], libraries: any[]): { theme: string; totalStock: number; libraryStocks: any[] }[] {
   const themeMap = new Map<string, { theme: string; totalStock: number; libraryStocks: Map<string, any> }>();
 
@@ -343,18 +347,18 @@ export function getThemeStockDiff(books: Book[], libraries: any[]): { theme: str
     }
     const themeData = themeMap.get(book.theme)!;
     themeData.totalStock += book.stock;
-    
+
     if (!themeData.libraryStocks.has(book.libraryId)) {
       const library = libraries.find(l => l.id === book.libraryId);
       themeData.libraryStocks.set(book.libraryId, {
         libraryId: book.libraryId,
         libraryName: library?.name || '未知',
-        stock: 0,
+        count: 0,
         available: 0
       });
     }
     const libStock = themeData.libraryStocks.get(book.libraryId)!;
-    libStock.stock += book.stock;
+    libStock.count += book.stock;
     libStock.available += book.available;
   });
 

@@ -613,7 +613,7 @@ export default function CompensationManagement() {
                                         破损等级：{tieredInfo?.name || c.damageLevel}
                                       </span>
                                       <span className="font-medium text-indigo-600">
-                                        × {Math.round(c.tierRatio || tieredInfo?.ratio || 0.4 * 100)}%
+                                        × {Math.round((c.tierRatio || tieredInfo?.ratio || 0.4) * 100)}%
                                       </span>
                                     </div>
                                     <div className="flex justify-between pt-1 border-t border-gray-200">
@@ -802,7 +802,7 @@ export default function CompensationManagement() {
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-black text-gray-900">{formatMoney(suggestedAmount)}</span>
                   <span className="text-xs text-gray-400">
-                    （{editForm.compensationMode === 'full' ? '原价100%' : `${currentTier?.name}×${Math.round(currentTier?.ratio || 0.4 * 100)}%`}）
+                    （{editForm.compensationMode === 'full' ? '原价100%' : `${currentTier?.name}×${Math.round((currentTier?.ratio || 0.4) * 100)}%`}）
                   </span>
                 </div>
               </div>

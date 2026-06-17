@@ -81,18 +81,19 @@ export default function RepairManagement() {
       alert('请填写图书和破损描述');
       return;
     }
-    const result = createRepairRecord(createForm);
-    if (result.success) {
-      setSuccessMsg(result.message);
-      setShowSuccess(true);
-      setShowCreateModal(false);
-      setCreateForm({
-        bookId: '', loanId: '', reportedBy: 'librarian',
-        damageDescription: '', damageLevel: 'moderate', libraryId: 'lib001'
-      });
-    } else {
-      alert(result.message);
-    }
+    createRepairRecord({
+      ...createForm,
+      status: 'pending',
+      reportedDate: new Date().toISOString().slice(0, 10),
+      loanId: createForm.loanId || undefined,
+    });
+    setSuccessMsg('破损记录已登记');
+    setShowSuccess(true);
+    setShowCreateModal(false);
+    setCreateForm({
+      bookId: '', loanId: '', reportedBy: 'librarian',
+      damageDescription: '', damageLevel: 'moderate', libraryId: 'lib001'
+    });
   };
 
   const handleComplete = () => {

@@ -67,6 +67,7 @@ interface AppState {
   
   addCheckin: (checkin: Omit<Checkin, 'id' | 'createdAt'>) => void;
   
+  reportDamage: (loanId: string, damageLevel: 'minor' | 'moderate' | 'severe' | 'lost', damageReason: string, compensationMode?: CompensationMode) => { success: boolean; message: string; compensation?: Compensation };
   createCompensation: (report: DamageReport) => Compensation;
   createOverdueCompensation: (loanId: string) => Compensation | null;
   processCompensation: (id: string, action: 'paid' | 'waived', paymentMethod?: string) => { success: boolean; message: string };
@@ -105,7 +106,9 @@ interface AppState {
   getLoansByFamily: (familyId: string) => Loan[];
   getCheckinsByLoan: (loanId: string) => Checkin[];
   getCheckinsByFamily: (familyId: string) => Checkin[];
+  getCheckinsByParent: (parentId: string) => Checkin[];
   getCompensationsByFamily: (familyId: string) => Compensation[];
+  getCompensationsByParent: (parentId: string) => Compensation[];
   getOverdueLoans: () => Loan[];
   getPendingCompensations: () => Compensation[];
   getPendingRepairs: () => RepairRecord[];
@@ -445,6 +448,72 @@ export const useAppStore = create<AppState>((set, get) => ({
     return newCompensation;
   },
 
+  reportDamage: (loanId, damageLevel, damageReason, compensationMode = 'tiered') => {
+    const state = get();
+    const loan = state.loans.find((l) => l.id === loanId);
+    if (!loan) {
+      return { success: false, message: '借阅记录不存在' };
+    }
+    if (loan.status === 'returned') {
+      return { success: false, message: '该绘本已归还，不能再上报破损' };
+    }
+    if (loan.hasDamage) {
+      const already = state.compensations.find(c => c.loanId === loanId && c.status === 'pending');
+      if (already) {
+        return { success: false, message: '该借阅已存在待处理的破损赔付记录，请耐心等待管理员审核' };
+      }
+    }
+
+    const book = state.books.find((b) => b.id === loan.bookId);
+    if (!book) {
+      return { success: false, message: '绘本信息不存在' };
+    }
+
+    set((s) => ({
+      loans: s.loans.map((l) =>
+        l.id === loanId
+          ? {
+              ...l,
+              hasDamage: true,
+              damageDescription: damageReason,
+              damageLevel,
+            }
+          : l
+      ),
+      books: s.books.map((b) =>
+        b.id === loan.bookId
+          ? {
+              ...b,
+              status: damageLevel === 'lost' ? 'lost' : (damageLevel === 'severe' ? 'damaged' : b.status),
+              available: damageLevel === 'lost' ? Math.max(0, b.available - 1) : b.available,
+            }
+          : b
+      ),
+    }));
+
+    const compensation = get().createCompensation({
+      loanId,
+      bookId: loan.bookId,
+      parentId: loan.parentId,
+      damageReason,
+      damageLevel,
+      compensationMode,
+    });
+
+    get().createRepairRecord({
+      bookId: loan.bookId,
+      loanId,
+      reportedBy: 'parent',
+      reportedDate: today(),
+      damageDescription: damageReason,
+      damageLevel: damageLevel === 'lost' ? 'severe' : (damageLevel === 'moderate' ? 'severe' : damageLevel),
+      status: damageLevel === 'lost' ? 'scrapped' : 'pending',
+      libraryId: book.libraryId,
+    });
+
+    return { success: true, message: '破损已上报，管理员会尽快与您联系处理赔付', compensation };
+  },
+
   createOverdueCompensation: (loanId) => {
     const state = get();
     const loan = state.loans.find(l => l.id === loanId);
@@ -780,7 +849,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   getLoansByFamily: (familyId) => get().loans.filter(l => l.familyId === familyId),
   getCheckinsByLoan: (loanId) => get().checkins.filter((c) => c.loanId === loanId),
   getCheckinsByFamily: (familyId) => get().checkins.filter(c => c.familyId === familyId),
+  getCheckinsByParent: (parentId) => get().checkins.filter(c => c.parentId === parentId),
   getCompensationsByFamily: (familyId) => get().compensations.filter(c => c.familyId === familyId),
+  getCompensationsByParent: (parentId) => get().compensations.filter(c => c.parentId === parentId),
   getOverdueLoans: () => get().loans.filter((l) => l.isOverdue || l.status === 'overdue'),
   getPendingCompensations: () => get().compensations.filter((c) => c.status === 'pending'),
   getPendingRepairs: () => get().repairRecords.filter(r => r.status === 'pending' || r.status === 'repairing'),

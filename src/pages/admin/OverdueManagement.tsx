@@ -4,18 +4,18 @@ import {
   Wrench, Calculator, Shield, CalendarDays, Ban, CheckCircle,
   ChevronDown, ChevronUp, Info
 } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
-import PageHeader from '@/components/PageHeader';
-import StatusBadge from '@/components/StatusBadge';
-import Modal from '@/components/Modal';
+import { useAppStore } from '../../store/useAppStore';
+import PageHeader from '../../components/PageHeader';
+import StatusBadge from '../../components/StatusBadge';
+import Modal from '../../components/Modal';
 import type { Loan, Book, Parent, Family } from '../../types';
 import { 
   getHolidaysBetween, 
   computeTieredCompensation, 
   computeOverdueFine,
   getHolidayDaysBetween
-} from '@/utils/businessRules';
-import { formatDate, getOverdueDays, addDays, daysBetween } from '@/utils/date';
+} from '../../utils/businessRules';
+import { formatDate, getOverdueDays, addDays, daysBetween } from '../../utils/date';
 
 type DamageLevel = 'minor' | 'moderate' | 'severe' | 'lost';
 type CompensationMode = 'tiered' | 'full';

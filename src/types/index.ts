@@ -113,9 +113,11 @@ export interface Checkin {
   memberId?: string;
   bookId: string;
   checkinDate: string;
+  date: string;
   photoUrl?: string;
   notes?: string;
   durationMinutes: number;
+  pageRead?: number;
   createdAt: string;
 }
 
@@ -146,12 +148,14 @@ export interface Compensation {
   reportedDate: string;
   paidDate: string | null;
   isLocked: boolean;
+  processedBy?: string;
   paymentMethod?: 'cash' | 'wechat' | 'alipay' | 'balance';
   notes?: string;
 }
 
 export interface LibrarianSettings {
   defaultLoanDays: number;
+  loanPeriod: number;
   allowRenewalTimes: number;
   allowOverdue: boolean;
   enableOverdueReminder: boolean;
